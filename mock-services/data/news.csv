@@ -1,0 +1,27 @@
+topic,title,link
+tech,Redis 8 Released,https://example.com/news/redis-8
+tech,Node.js Async Patterns,https://example.com/news/node-async
+tech,OpenTelemetry for APIs,https://example.com/news/otel
+tech,Kubernetes 1.30 Highlights,https://example.com/news/k8s-130
+tech,Postgres 17 Query Planner,https://example.com/news/pg17
+tech,WebAssembly on the Edge,https://example.com/news/wasm-edge
+tech,gRPC vs REST Tradeoffs,https://example.com/news/grpc-rest
+tech,Structured Logging at Scale,https://example.com/news/logging
+world,Climate Summit Opens,https://example.com/news/climate-summit
+world,Trade Routes Shift,https://example.com/news/trade
+world,Regional Elections Wrap,https://example.com/news/elections
+world,Hospital Funding Bill,https://example.com/news/health-bill
+world,Maritime Patrol Update,https://example.com/news/maritime
+sports,Cricket Finals Preview,https://example.com/news/cricket-finals
+sports,League Transfer Window,https://example.com/news/transfers
+sports,Marathon Record Challenged,https://example.com/news/marathon
+sports,Youth Academy Spotlight,https://example.com/news/youth
+sports,Stadium Renovation Plan,https://example.com/news/stadium
+business,FX Markets Digest,https://example.com/news/fx-digest
+business,SME Credit Lines,https://example.com/news/sme-credit
+business,Quarterly Earnings Roundup,https://example.com/news/earnings
+business,Supply Chain Resilience,https://example.com/news/supply-chain
+tech,Docker Compose Tips,https://example.com/news/compose-tips
+tech,HTTP/3 Adoption Notes,https://example.com/news/http3
+world,Aid Package Approved,https://example.com/news/aid
+sports,Injury Report Update,https://example.com/news/injuries

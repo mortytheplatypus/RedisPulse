@@ -1,0 +1,23 @@
+{
+  "name": "mock-services",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start:weather": "node src/weather-server.js",
+    "start:news": "node src/news-server.js",
+    "start:currency": "node src/currency-server.js",
+    "start:all": "concurrently -n w,n,c \"npm run start:weather\" \"npm run start:news\" \"npm run start:currency\"",
+    "dev:weather": "node --watch src/weather-server.js",
+    "dev:news": "node --watch src/news-server.js",
+    "dev:currency": "node --watch src/currency-server.js",
+    "start": "npm run start:all",
+    "dev": "concurrently -n w,n,c -c blue,green,magenta \"npm run dev:weather\" \"npm run dev:news\" \"npm run dev:currency\""
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "cache-project",
+  "private": true,
+  "workspaces": [
+    "mock-services",
+    "api-service"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "dev:mock": "npm run dev --workspace=mock-services",
+    "dev:api": "npm run dev --workspace=api-service",
+    "start:mock": "npm run start --workspace=mock-services",
+    "start:api": "npm run start --workspace=api-service"
+  }
+}

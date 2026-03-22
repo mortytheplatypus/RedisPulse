@@ -1,0 +1,21 @@
+location,temperature,condition
+Dhaka,32,Sunny
+Dhaka,29,Partly Cloudy
+Chittagong,30,Humid
+Chittagong,27,Rainy
+Sylhet,26,Foggy
+Rajshahi,35,Hot
+Khulna,31,Windy
+Barisal,28,Thunderstorms
+Rangpur,24,Cool
+Mymensingh,27,Misty
+Dhaka,33,Clear
+Chittagong,31,Overcast
+Sylhet,25,Heavy Rain
+Rajshahi,34,Dusty
+Khulna,30,Hazy
+Barisal,29,Light Rain
+Rangpur,23,Cold Snap
+Mymensingh,28,Showers
+Dhaka,31,Breezy
+Chittagong,32,Clear
