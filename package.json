@@ -10,6 +10,8 @@
     "dev:mock": "npm run dev --workspace=mock-services",
     "dev:api": "npm run dev --workspace=api-service",
     "start:mock": "npm run start --workspace=mock-services",
-    "start:api": "npm run start --workspace=api-service"
+    "start:api": "npm run start --workspace=api-service",
+    "redis:up": "docker compose -f infra/redis/docker-compose.yml up -d",
+    "redis:down": "docker compose -f infra/redis/docker-compose.yml down"
   }
 }

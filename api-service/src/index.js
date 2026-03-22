@@ -1,7 +1,15 @@
 import express from "express";
+import {
+  aggregateCacheKey,
+  createRedisClient,
+  getCachedJson,
+  setCachedJson,
+} from "./cache.js";
+import { fetchAggregate } from "./fetchAggregate.js";
 
 const app = express();
 const PORT = Number(process.env.API_PORT ?? 3000);
+const CACHE_TTL_SECONDS = Number(process.env.CACHE_TTL_SECONDS ?? 300);
 
 function baseUrl(envName, fallback) {
   return (process.env[envName] ?? fallback).replace(/\/$/, "");
@@ -12,72 +20,58 @@ const WEATHER_SERVICE_URL = baseUrl("WEATHER_SERVICE_URL", "http://127.0.0.1:400
 const NEWS_SERVICE_URL = baseUrl("NEWS_SERVICE_URL", "http://127.0.0.1:4002");
 const CURRENCY_SERVICE_URL = baseUrl("CURRENCY_SERVICE_URL", "http://127.0.0.1:4003");
 
+const redis = createRedisClient();
+
 /**
- * GET /aggregate
- * Fetches weather, news, and currency in parallel. Uses Promise.allSettled so one
- * failing backend still returns partial data with per-source status/error.
+ * GET /aggregate — cache-aside: Redis `data:aggregate:...` JSON blob with TTL.
+ * Caches only when all upstreams succeed. If Redis is down or disabled, still serves (bypass).
  */
 app.get("/aggregate", async (req, res) => {
   const location = req.query.location ?? "dhaka";
   const topic = req.query.topic ?? "tech";
   const base = req.query.base ?? "USD";
 
-  const weatherUrl = `${WEATHER_SERVICE_URL}/weather?${new URLSearchParams({ location })}`;
-  const newsUrl = `${NEWS_SERVICE_URL}/news?${new URLSearchParams({ topic })}`;
-  const currencyUrl = `${CURRENCY_SERVICE_URL}/currency?${new URLSearchParams({ base })}`;
+  const key = aggregateCacheKey(location, topic, base);
 
-  const labels = ["weather", "news", "currency"];
-  const settled = await Promise.allSettled([
-    fetch(weatherUrl).then(async (r) => {
-      const body = await r.json().catch(() => ({}));
-      if (!r.ok) throw Object.assign(new Error(body.error ?? r.statusText), { status: r.status, body });
-      return body;
-    }),
-    fetch(newsUrl).then(async (r) => {
-      const body = await r.json().catch(() => ({}));
-      if (!r.ok) throw Object.assign(new Error(body.error ?? r.statusText), { status: r.status, body });
-      return body;
-    }),
-    fetch(currencyUrl).then(async (r) => {
-      const body = await r.json().catch(() => ({}));
-      if (!r.ok) throw Object.assign(new Error(body.error ?? r.statusText), { status: r.status, body });
-      return body;
-    }),
-  ]);
-
-  const parts = {};
-  const errors = {};
-
-  settled.forEach((result, i) => {
-    const key = labels[i];
-    if (result.status === "fulfilled") {
-      parts[key] = result.value;
-    } else {
-      const err = result.reason;
-      const status = err?.status ?? 502;
-      const message = err?.message ?? String(err);
-      errors[key] = { status, message, detail: err?.body };
-      parts[key] = null;
+  if (redis) {
+    const cached = await getCachedJson(redis, key);
+    if (cached && typeof cached.statusCode === "number" && cached.body) {
+      return res
+        .status(cached.statusCode)
+        .set("X-Cache", "HIT")
+        .json({ ...cached.body, cache: "hit" });
     }
+  }
+
+  const { statusCode, body, cacheable } = await fetchAggregate({
+    location,
+    topic,
+    base,
+    WEATHER_SERVICE_URL,
+    NEWS_SERVICE_URL,
+    CURRENCY_SERVICE_URL,
   });
 
-  const allFailed = Object.keys(errors).length === 3;
-  const statusCode = allFailed ? 502 : 200;
+  if (redis && cacheable) {
+    await setCachedJson(redis, key, { statusCode, body }, CACHE_TTL_SECONDS);
+  }
 
-  res.status(statusCode).json({
-    query: { location, topic, base },
-    sources: {
-      weather: settled[0].status === "fulfilled" ? "ok" : "error",
-      news: settled[1].status === "fulfilled" ? "ok" : "error",
-      currency: settled[2].status === "fulfilled" ? "ok" : "error",
-    },
-    data: parts,
-    ...(Object.keys(errors).length ? { errors } : {}),
-  });
+  const xCache = redis ? "MISS" : "BYPASS";
+  res.status(statusCode).set("X-Cache", xCache).json({ ...body, cache: redis ? "miss" : "bypass" });
 });
 
-app.get("/health", (_req, res) => {
-  res.json({ ok: true });
+app.get("/health", async (_req, res) => {
+  const cache = redis ? { redis: "configured" } : { redis: "disabled" };
+  let redisOk = null;
+  if (redis) {
+    try {
+      const pong = await redis.ping();
+      redisOk = pong === "PONG";
+    } catch {
+      redisOk = false;
+    }
+  }
+  res.json({ ok: true, ...cache, redisReachable: redisOk });
 });
 
 app.listen(PORT, () => {
@@ -85,4 +79,6 @@ app.listen(PORT, () => {
   console.log(`WEATHER_SERVICE_URL=${WEATHER_SERVICE_URL}`);
   console.log(`NEWS_SERVICE_URL=${NEWS_SERVICE_URL}`);
   console.log(`CURRENCY_SERVICE_URL=${CURRENCY_SERVICE_URL}`);
+  console.log(`REDIS_URL=${redis ? (process.env.REDIS_URL ?? "(set)") : "disabled"}`);
+  console.log(`CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS}`);
 });
