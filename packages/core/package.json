@@ -1,0 +1,14 @@
+{
+  "name": "@cache-project/core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./fetchAggregate.js": "./src/fetchAggregate.js",
+    "./redisOps.js": "./src/redisOps.js"
+  },
+  "dependencies": {
+    "ioredis": "^5.4.2"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "name": "api",
+  "name": "cache-worker",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "@cache-project/core": "file:../packages/core",
-    "express": "^4.21.2",
     "ioredis": "^5.4.2"
   }
 }

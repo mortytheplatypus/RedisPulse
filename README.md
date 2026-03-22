@@ -4,7 +4,9 @@
 
 - `mock-services/` — Service A slow **weather** (`WEATHER_PORT`, default `4001`), B flaky **news** (`NEWS_PORT`, default `4002`), C rate-limited **currency** (`CURRENCY_PORT`, default `4003`)
 - Data for random responses: [`mock-services/data/weather.csv`](mock-services/data/weather.csv), [`news.csv`](mock-services/data/news.csv), [`currency.csv`](mock-services/data/currency.csv)
-- `api-service/` — `GET /aggregate` calls all three in parallel; has Redis cache-aside (`data:aggregate:...`)
+- [`packages/core/`](packages/core/) — shared **`fetchAggregate`**, Redis key helpers, **`data:` / `meta:` / `lock:`** operations, **`queue:refresh`** enqueue
+- `api-service/` — `GET /aggregate` with **cache-aside**, **stale-while-revalidate**, **locks**, optional **queue** refresh, **rate limiting**
+- `worker/` — **BRPOP** on `queue:refresh`, refreshes aggregate cache (run beside API when using queue mode)
 - `infra/redis/` — Docker Compose + `redis.conf` for local Redis
 
 ## Setup
@@ -14,100 +16,63 @@ cd /path/to/cache-project
 npm install
 ```
 
-## Redis (cache-aside)
+## Redis
 
-Start Redis with Docker (config lives under [`infra/redis/`](infra/redis/)):
-
-```bash
-docker compose -f infra/redis/docker-compose.yml up -d
-```
-
-Run the API with a Redis URL and optional TTL (seconds):
+Start Redis (see [`infra/redis/README.md`](infra/redis/README.md)):
 
 ```bash
+npm run redis:up
 export REDIS_URL=redis://127.0.0.1:6379
-export CACHE_TTL_SECONDS=300
-npm run dev:api
 ```
 
-- **Cache-aside:** `GET /aggregate` reads `data:aggregate:{location}:{topic}:{base}`; on miss, fetches mocks, **SET** with TTL, returns JSON.
-- **Cached only when all three upstreams succeed** (partial failures are not stored).
-- **Graceful degradation:** if Redis is unset, unreachable, or errors: API still responds (no cache); `X-Cache: BYPASS` or miss path.
-- Response includes `cache`: `"hit" | "miss" | "bypass"`; **`X-Cache`**: `HIT` | `MISS` | `BYPASS`.
+## Phases 3–6 (behavior)
 
-See [`infra/redis/README.md`](infra/redis/README.md) for compose/stop and env notes.
+| Phase | Behavior |
+|-------|----------|
+| **3 — SWR** | `data:aggregate:...` + `meta:aggregate:...` (`storedAt`). **Fresh** (age ≤ `STALE_AFTER_SECONDS`) → `X-Cache: HIT`. **Stale** (age between soft and hard max) → `X-Cache: STALE`, return cached JSON, **enqueue or inline refresh**. **Hard** age &gt; `MAX_CACHE_SECONDS` → entry deleted, miss path. |
+| **4 — Lock** | On miss, **`SET lock:aggregate:... NX EX`**; waiters **poll** (`LOCK_WAIT_MS` / `LOCK_POLL_MS`) for another process to fill cache, then **retry lock** or fetch. Stale background refresh also uses the lock. |
+| **5 — Queue** | Default **`USE_REFRESH_QUEUE`** (set to `false` to force **inline** refresh only). API **`LPUSH queue:refresh`** with `{ kind, location, topic, base }`. Run **`npm run dev:worker`** in another terminal. |
+| **6 — Rate limit** | Fixed window **`INCR` + `EXPIRE`** on `rate:aggregate:{ip}:{window}`. **`429`** + `Retry-After` when over limit (requires Redis; skipped if Redis disabled). |
 
-## Run mocks (one command)
+**Caching rule:** only **all-three-upstream success** responses are written to `data:`/`meta:`.
 
-All three mocks (with file watch):
+**Response:** `cache` is `hit` | `stale` | `miss` | `bypass` (no Redis).
+
+## Run mocks
 
 ```bash
 npm run dev:mock
 ```
 
-Or without watch:
-
-```bash
-npm run start:mock
-```
-
-Individual processes (optional):
-
-```bash
-cd mock-services && npm run dev:weather   # port 4001
-cd mock-services && npm run dev:news      # port 4002
-cd mock-services && npm run dev:currency  # port 4003
-```
-
 ## Run API
-
-Start mocks first (see above), then the aggregation API in another terminal:
 
 ```bash
 npm run dev:api
 ```
 
-Without file watch:
+## Run worker (when `USE_REFRESH_QUEUE` is on)
+
+Requires `REDIS_URL`, same mock URLs as the API:
 
 ```bash
-npm run start:api
+export REDIS_URL=redis://127.0.0.1:6379
+npm run dev:worker
 ```
 
-Defaults assume mocks on `4001`–`4003`. Override if needed:
+## Environment (API)
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `WEATHER_PORT` | `4001` | Port for weather mock (set `WEATHER_SERVICE_URL` to match if you change this) |
-| `NEWS_PORT` | `4002` | Port for news mock |
-| `CURRENCY_PORT` | `4003` | Port for currency mock |
-| `WEATHER_SERVICE_URL` | `http://127.0.0.1:4001` | Weather mock base URL (used by `api-service`) |
-| `NEWS_SERVICE_URL` | `http://127.0.0.1:4002` | News mock base URL |
-| `CURRENCY_SERVICE_URL` | `http://127.0.0.1:4003` | Currency mock base URL |
-| `API_PORT` | `3000` | Aggregation API |
-| `REDIS_URL` | _(unset)_ | e.g. `redis://127.0.0.1:6379`; omit or `false` to disable cache |
-| `CACHE_TTL_SECONDS` | `300` | TTL for cached aggregate JSON |
-| `WEATHER_DELAY_MIN_MS` / `WEATHER_DELAY_MAX_MS` | `1000` / `2000` | Service A delay |
-| `CURRENCY_MAX_PER_MINUTE` | `5` | Successful `/currency` calls per UTC minute |
-
-## Example responses (mocks)
-
-**Weather** — random row from CSV (optionally filtered by `location`):
-
-```json
-{ "location": "Dhaka", "temperature": 32, "condition": "Sunny" }
-```
-
-**News** — two random articles for `topic` from CSV:
-
-```json
-{ "topic": "tech", "articles": [{ "title": "...", "link": "..." }, ...] }
-```
-
-**Currency** — random row for `base` from CSV:
-
-```json
-{ "base": "USD", "rates": { "EUR": 0.92, "GBP": 0.78, "BDT": 107.5 } }
-```
+| `WEATHER_SERVICE_URL` / `NEWS_SERVICE_URL` / `CURRENCY_SERVICE_URL` | `http://127.0.0.1:4001`–`4003` | Mock bases |
+| `API_PORT` | `3000` | API listen port |
+| `REDIS_URL` | _(unset)_ | `redis://...`; omit or `false` → no cache (`bypass`) |
+| `STALE_AFTER_SECONDS` | `60` | Fresh vs stale (soft) |
+| `MAX_CACHE_SECONDS` | `3600` | Drop entry if older (hard) |
+| `LOCK_WAIT_MS` / `LOCK_POLL_MS` | `2500` / `50` | Stampede waiter poll |
+| `LOCK_TTL_SECONDS` | `5` | Lock key TTL (`packages/core` / worker) |
+| `USE_REFRESH_QUEUE` | `true` (if Redis) | `false` = inline refresh only |
+| `RATE_LIMIT_MAX` | `100` | Requests per window per IP (`/aggregate`) |
+| `RATE_LIMIT_WINDOW_SEC` | `60` | Fixed window length |
 
 ## Example requests
 
@@ -119,4 +84,4 @@ curl -s "http://127.0.0.1:4002/news?topic=tech"
 curl -s "http://127.0.0.1:4003/currency?base=USD"
 ```
 
-Partial failures: if one upstream fails, the response is still **200** with `data` null for that key and an `errors` map; if **all** fail, status **502**.
+Partial upstream failures: response can still be **200** with `errors`; those responses are **not** cached.
