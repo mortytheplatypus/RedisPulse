@@ -1,9 +1,10 @@
 import express from "express";
 import { pickRandomSubset, shouldFailNews } from "./behaviors.js";
 import { loadCsvFile } from "./csv.js";
+import { DEFAULTS } from "../../default.js";
 
 const app = express();
-const PORT = Number(process.env.NEWS_PORT ?? 4002);
+const PORT = Number(process.env.NEWS_PORT ?? DEFAULTS.NEWS_PORT);
 
 const rows = loadCsvFile("../data/news.csv");
 

@@ -4,11 +4,12 @@ import {
   sleep,
 } from "./behaviors.js";
 import { loadCsvFile } from "./csv.js";
+import { DEFAULTS } from "../../default.js";
 
 const app = express();
-const PORT = Number(process.env.WEATHER_PORT ?? 4001);
-const WEATHER_DELAY_MIN_MS = Number(process.env.WEATHER_DELAY_MIN_MS ?? 1000);
-const WEATHER_DELAY_MAX_MS = Number(process.env.WEATHER_DELAY_MAX_MS ?? 2000);
+const PORT = Number(process.env.WEATHER_PORT ?? DEFAULTS.WEATHER_PORT);
+const WEATHER_DELAY_MIN_MS = Number(process.env.WEATHER_DELAY_MIN_MS ?? DEFAULTS.WEATHER_DELAY_MIN_MS);
+const WEATHER_DELAY_MAX_MS = Number(process.env.WEATHER_DELAY_MAX_MS ?? DEFAULTS.WEATHER_DELAY_MAX_MS);
 
 const rows = loadCsvFile("../data/weather.csv");
 

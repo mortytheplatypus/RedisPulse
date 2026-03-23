@@ -1,10 +1,11 @@
 import express from "express";
 import { createMinuteRateLimiter } from "./behaviors.js";
 import { loadCsvFile } from "./csv.js";
+import { DEFAULTS } from "../../default.js";
 
 const app = express();
-const PORT = Number(process.env.CURRENCY_PORT ?? 4003);
-const CURRENCY_MAX_PER_MINUTE = Number(process.env.CURRENCY_MAX_PER_MINUTE ?? 5);
+const PORT = Number(process.env.CURRENCY_PORT ?? DEFAULTS.CURRENCY_PORT);
+const CURRENCY_MAX_PER_MINUTE = Number(process.env.CURRENCY_MAX_PER_MINUTE ?? DEFAULTS.CURRENCY_MAX_PER_MINUTE);
 
 const allowed = createMinuteRateLimiter(CURRENCY_MAX_PER_MINUTE);
 const rows = loadCsvFile("../data/currency.csv");

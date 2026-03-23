@@ -8,6 +8,7 @@ import {
   releaseServiceLock,
   writeServiceEntry,
 } from "@redis-pulse/core";
+import { DEFAULTS } from "../../../default.js";
 
 const redisUrl = process.env.REDIS_URL;
 if (!redisUrl || redisUrl === "false" || redisUrl === "0") {
@@ -24,9 +25,9 @@ function baseUrl(envName, fallback) {
   return (process.env[envName] ?? fallback).replace(/\/$/, "");
 }
 
-const WEATHER_SERVICE_URL = baseUrl("WEATHER_SERVICE_URL", "http://127.0.0.1:4001");
-const NEWS_SERVICE_URL = baseUrl("NEWS_SERVICE_URL", "http://127.0.0.1:4002");
-const CURRENCY_SERVICE_URL = baseUrl("CURRENCY_SERVICE_URL", "http://127.0.0.1:4003");
+const WEATHER_SERVICE_URL = baseUrl("WEATHER_SERVICE_URL", DEFAULTS.WEATHER_SERVICE_URL);
+const NEWS_SERVICE_URL = baseUrl("NEWS_SERVICE_URL", DEFAULTS.NEWS_SERVICE_URL);
+const CURRENCY_SERVICE_URL = baseUrl("CURRENCY_SERVICE_URL", DEFAULTS.CURRENCY_SERVICE_URL);
 
 async function processWeatherJob(job) {
   const location = job.location ?? "dhaka";

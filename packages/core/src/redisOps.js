@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { DEFAULTS } from "../../../default.js";
 
 function normalize(kind, query) {
   const k = String(kind).toLowerCase().trim();
@@ -28,7 +29,7 @@ export function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-const LOCK_TTL_SEC = Number(process.env.LOCK_TTL_SECONDS ?? 5);
+const LOCK_TTL_SEC = Number(process.env.LOCK_TTL_SECONDS ?? DEFAULTS.LOCK_TTL_SECONDS);
 
 function randomToken() {
   return randomBytes(16).toString("hex");
