@@ -1,4 +1,6 @@
-# redis-pulse
+# RedisPulse
+
+Redis-powered resilient data API using per-service caching, stale-while-revalidate, distributed locking, background refresh queue, and rate limiting.
 
 ## Layout
 
