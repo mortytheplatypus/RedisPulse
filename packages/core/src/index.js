@@ -1,12 +1,10 @@
-export { fetchWeather, fetchNews, fetchCurrency } from "./fetchSingle.js";
+export { fetchWeather, fetchNews, fetchCurrency } from "./serviceClients.js";
 export {
+  QUEUE_REFRESH,
+  sleep,
   serviceDataKey,
   serviceMetaKey,
   serviceLockKey,
-  QUEUE_REFRESH,
-} from "./keys.js";
-export {
-  sleep,
   enqueueRefreshJob,
   readServiceEntry,
   writeServiceEntry,

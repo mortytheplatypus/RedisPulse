@@ -6,7 +6,7 @@
 - Data for random responses: [`mock-services/data/weather.csv`](mock-services/data/weather.csv), [`news.csv`](mock-services/data/news.csv), [`currency.csv`](mock-services/data/currency.csv)
 - [`packages/core/`](packages/core/) — shared fetchers (`fetchWeather`, `fetchNews`, `fetchCurrency`), Redis key helpers, and **`data:` / `meta:` / `lock:`** operations
 - `api-service/` — `GET /weather`, `GET /news`, `GET /currency` with **cache-aside**, **stale-while-revalidate**, **locks**, optional **queue** refresh, and **rate limiting**
-- `worker/` — **BRPOP** on `queue:refresh`, refreshes per-service caches (run beside API when using queue mode)
+- `packages/worker/` — **BRPOP** on `queue:refresh`, refreshes per-service caches (run beside API when using queue mode)
 - `infra/redis/` — Docker Compose + `redis.conf` for local Redis
 
 ## Service map
@@ -27,7 +27,7 @@ Redis
   ^
   | BRPOP/LPUSH queue:refresh
   |
-worker
+packages/worker
   |
   | Fetch upstream data
   v

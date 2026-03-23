@@ -11,7 +11,7 @@ import {
 
 const redisUrl = process.env.REDIS_URL;
 if (!redisUrl || redisUrl === "false" || redisUrl === "0") {
-  console.error("cache-worker: REDIS_URL is required");
+  console.error("worker: REDIS_URL is required");
   process.exit(1);
 }
 
@@ -77,7 +77,7 @@ async function processJob(job) {
 }
 
 async function main() {
-  console.log(`cache-worker: blocking on ${QUEUE_REFRESH}`);
+  console.log(`worker: blocking on ${QUEUE_REFRESH}`);
   console.log(`WEATHER_SERVICE_URL=${WEATHER_SERVICE_URL}`);
   // eslint-disable-next-line no-constant-condition -- BRPOP loop
   while (true) {
