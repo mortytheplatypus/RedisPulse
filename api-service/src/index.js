@@ -1,7 +1,7 @@
 import express from "express";
-import { serveAggregate } from "./aggregateHandler.js";
+import { serveCurrency, serveNews, serveWeather } from "./serviceHandler.js";
 import { createRedisClient } from "./cache.js";
-import { createAggregateRateLimiter } from "./rateLimit.js";
+import { createApiRateLimiter } from "./rateLimit.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -24,7 +24,7 @@ const CURRENCY_SERVICE_URL = baseUrl("CURRENCY_SERVICE_URL", "http://127.0.0.1:4
 
 const redis = createRedisClient();
 
-const aggregateCtx = {
+const serviceCtx = {
   redis,
   staleAfterSeconds: STALE_AFTER_SECONDS,
   maxCacheSeconds: MAX_CACHE_SECONDS,
@@ -36,11 +36,27 @@ const aggregateCtx = {
   CURRENCY_SERVICE_URL,
 };
 
-const rateLimitMw = createAggregateRateLimiter(redis, {});
+const rateLimitMw = createApiRateLimiter(redis, {});
 
-app.get("/aggregate", rateLimitMw, async (req, res, next) => {
+app.get("/weather", rateLimitMw, async (req, res, next) => {
   try {
-    await serveAggregate(req, res, aggregateCtx);
+    await serveWeather(req, res, serviceCtx);
+  } catch (e) {
+    next(e);
+  }
+});
+
+app.get("/news", rateLimitMw, async (req, res, next) => {
+  try {
+    await serveNews(req, res, serviceCtx);
+  } catch (e) {
+    next(e);
+  }
+});
+
+app.get("/currency", rateLimitMw, async (req, res, next) => {
+  try {
+    await serveCurrency(req, res, serviceCtx);
   } catch (e) {
     next(e);
   }
@@ -67,5 +83,5 @@ app.listen(PORT, () => {
   console.log(`CURRENCY_SERVICE_URL=${CURRENCY_SERVICE_URL}`);
   console.log(`REDIS_URL=${redis ? (process.env.REDIS_URL ?? "(set)") : "disabled"}`);
   console.log(`STALE_AFTER_SECONDS=${STALE_AFTER_SECONDS} MAX_CACHE_SECONDS=${MAX_CACHE_SECONDS}`);
-  console.log(`USE_REFRESH_QUEUE=${aggregateCtx.useRefreshQueue}`);
+  console.log(`USE_REFRESH_QUEUE=${serviceCtx.useRefreshQueue}`);
 });

@@ -1,18 +1,18 @@
 /**
- * Phase 6: fixed-window rate limit per client IP using INCR + EXPIRE.
+ * Fixed-window rate limit per client IP using INCR + EXPIRE.
  */
-export function createAggregateRateLimiter(redis, options) {
+export function createApiRateLimiter(redis, options) {
   const limit = Number(options.limit ?? process.env.RATE_LIMIT_MAX ?? 100);
   const windowSec = Number(options.windowSec ?? process.env.RATE_LIMIT_WINDOW_SEC ?? 60);
   const prefix = options.keyPrefix ?? "rate";
 
-  return async function aggregateRateLimit(req, res, next) {
+  return async function apiRateLimit(req, res, next) {
     if (!redis) {
       return next();
     }
     const ip = req.ip || req.socket?.remoteAddress || "unknown";
     const window = Math.floor(Date.now() / (windowSec * 1000));
-    const key = `${prefix}:aggregate:${ip}:${window}`;
+    const key = `${prefix}:api:${ip}:${window}`;
     try {
       const n = await redis.incr(key);
       if (n === 1) {

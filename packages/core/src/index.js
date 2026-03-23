@@ -1,18 +1,17 @@
-export { fetchAggregate } from "./fetchAggregate.js";
+export { fetchWeather, fetchNews, fetchCurrency } from "./fetchSingle.js";
 export {
-  aggregateDataKey,
-  aggregateMetaKey,
-  aggregateLockKey,
-  aggregateCacheKey,
+  serviceDataKey,
+  serviceMetaKey,
+  serviceLockKey,
   QUEUE_REFRESH,
 } from "./keys.js";
 export {
   sleep,
-  readAggregateEntry,
-  writeAggregateEntry,
-  deleteAggregateEntry,
-  acquireLock,
-  releaseLock,
   enqueueRefreshJob,
-  pollUntilAggregatePresent,
+  readServiceEntry,
+  writeServiceEntry,
+  deleteServiceEntry,
+  acquireServiceLock,
+  releaseServiceLock,
+  pollUntilServicePresent,
 } from "./redisOps.js";

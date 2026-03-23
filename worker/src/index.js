@@ -1,10 +1,12 @@
 import Redis from "ioredis";
 import {
   QUEUE_REFRESH,
-  acquireLock,
-  fetchAggregate,
-  releaseLock,
-  writeAggregateEntry,
+  acquireServiceLock,
+  fetchCurrency,
+  fetchNews,
+  fetchWeather,
+  releaseServiceLock,
+  writeServiceEntry,
 } from "@redis-pulse/core";
 
 const redisUrl = process.env.REDIS_URL;
@@ -26,31 +28,52 @@ const WEATHER_SERVICE_URL = baseUrl("WEATHER_SERVICE_URL", "http://127.0.0.1:400
 const NEWS_SERVICE_URL = baseUrl("NEWS_SERVICE_URL", "http://127.0.0.1:4002");
 const CURRENCY_SERVICE_URL = baseUrl("CURRENCY_SERVICE_URL", "http://127.0.0.1:4003");
 
-async function processJob(job) {
-  if (job.kind !== "aggregate") return;
-  const { location, topic, base } = job;
-  const token = await acquireLock(redis, location, topic, base);
-  if (!token) {
-    return;
-  }
+async function processWeatherJob(job) {
+  const location = job.location ?? "dhaka";
+  const token = await acquireServiceLock(redis, "weather", location);
+  if (!token) return;
   try {
-    const result = await fetchAggregate({
-      location,
-      topic,
-      base,
-      WEATHER_SERVICE_URL,
-      NEWS_SERVICE_URL,
-      CURRENCY_SERVICE_URL,
-    });
+    const result = await fetchWeather({ location, WEATHER_SERVICE_URL });
     if (result.cacheable) {
-      await writeAggregateEntry(redis, location, topic, base, {
-        statusCode: result.statusCode,
-        body: result.body,
-      });
+      await writeServiceEntry(redis, "weather", location, result);
     }
   } finally {
-    await releaseLock(redis, location, topic, base, token);
+    await releaseServiceLock(redis, "weather", location, token);
   }
+}
+
+async function processNewsJob(job) {
+  const topic = job.topic ?? "tech";
+  const token = await acquireServiceLock(redis, "news", topic);
+  if (!token) return;
+  try {
+    const result = await fetchNews({ topic, NEWS_SERVICE_URL });
+    if (result.cacheable) {
+      await writeServiceEntry(redis, "news", topic, result);
+    }
+  } finally {
+    await releaseServiceLock(redis, "news", topic, token);
+  }
+}
+
+async function processCurrencyJob(job) {
+  const base = job.base ?? "USD";
+  const token = await acquireServiceLock(redis, "currency", base);
+  if (!token) return;
+  try {
+    const result = await fetchCurrency({ base, CURRENCY_SERVICE_URL });
+    if (result.cacheable) {
+      await writeServiceEntry(redis, "currency", base, result);
+    }
+  } finally {
+    await releaseServiceLock(redis, "currency", base, token);
+  }
+}
+
+async function processJob(job) {
+  if (job.kind === "weather") return processWeatherJob(job);
+  if (job.kind === "news") return processNewsJob(job);
+  if (job.kind === "currency") return processCurrencyJob(job);
 }
 
 async function main() {

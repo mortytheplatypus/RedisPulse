@@ -1,29 +1,23 @@
-const norm = (location, topic, base) => {
-  const l = String(location).toLowerCase().trim();
-  const t = String(topic).toLowerCase().trim();
-  const b = String(base).toUpperCase().trim();
-  return { l, t, b };
-};
-
-/** data:{resource}:{params} */
-export function aggregateDataKey(location, topic, base) {
-  const { l, t, b } = norm(location, topic, base);
-  return `data:aggregate:${l}:${t}:${b}`;
+function normalize(kind, query) {
+  const k = String(kind).toLowerCase().trim();
+  const q = String(query).trim();
+  if (k === "currency") return { k, q: q.toUpperCase() };
+  return { k, q: q.toLowerCase() };
 }
 
-/** Alias for older call sites / README */
-export const aggregateCacheKey = aggregateDataKey;
-
-/** meta:{resource}:{params} */
-export function aggregateMetaKey(location, topic, base) {
-  const { l, t, b } = norm(location, topic, base);
-  return `meta:aggregate:${l}:${t}:${b}`;
+export function serviceDataKey(kind, query) {
+  const { k, q } = normalize(kind, query);
+  return `data:${k}:${q}`;
 }
 
-/** lock:{resource}:{params} */
-export function aggregateLockKey(location, topic, base) {
-  const { l, t, b } = norm(location, topic, base);
-  return `lock:aggregate:${l}:${t}:${b}`;
+export function serviceMetaKey(kind, query) {
+  const { k, q } = normalize(kind, query);
+  return `meta:${k}:${q}`;
+}
+
+export function serviceLockKey(kind, query) {
+  const { k, q } = normalize(kind, query);
+  return `lock:${k}:${q}`;
 }
 
 export const QUEUE_REFRESH = "queue:refresh";
