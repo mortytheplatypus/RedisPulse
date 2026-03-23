@@ -1,5 +1,5 @@
 {
-  "name": "@cache-project/core",
+  "name": "@redis-pulse/core",
   "version": "1.0.0",
   "private": true,
   "type": "module",

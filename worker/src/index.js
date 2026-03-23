@@ -5,7 +5,7 @@ import {
   fetchAggregate,
   releaseLock,
   writeAggregateEntry,
-} from "@cache-project/core";
+} from "@redis-pulse/core";
 
 const redisUrl = process.env.REDIS_URL;
 if (!redisUrl || redisUrl === "false" || redisUrl === "0") {

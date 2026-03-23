@@ -12,7 +12,7 @@
 ## Setup
 
 ```bash
-cd /path/to/cache-project
+cd /path/to/redis-pulse
 npm install
 ```
 
@@ -25,14 +25,14 @@ npm run redis:up
 export REDIS_URL=redis://127.0.0.1:6379
 ```
 
-## Phases 3–6 (behavior)
+## Features
 
-| Phase | Behavior |
+| Feature | Behavior |
 |-------|----------|
-| **3 — SWR** | `data:aggregate:...` + `meta:aggregate:...` (`storedAt`). **Fresh** (age ≤ `STALE_AFTER_SECONDS`) → `X-Cache: HIT`. **Stale** (age between soft and hard max) → `X-Cache: STALE`, return cached JSON, **enqueue or inline refresh**. **Hard** age &gt; `MAX_CACHE_SECONDS` → entry deleted, miss path. |
-| **4 — Lock** | On miss, **`SET lock:aggregate:... NX EX`**; waiters **poll** (`LOCK_WAIT_MS` / `LOCK_POLL_MS`) for another process to fill cache, then **retry lock** or fetch. Stale background refresh also uses the lock. |
-| **5 — Queue** | Default **`USE_REFRESH_QUEUE`** (set to `false` to force **inline** refresh only). API **`LPUSH queue:refresh`** with `{ kind, location, topic, base }`. Run **`npm run dev:worker`** in another terminal. |
-| **6 — Rate limit** | Fixed window **`INCR` + `EXPIRE`** on `rate:aggregate:{ip}:{window}`. **`429`** + `Retry-After` when over limit (requires Redis; skipped if Redis disabled). |
+| **SWR** | `data:aggregate:...` + `meta:aggregate:...` (`storedAt`). **Fresh** (age ≤ `STALE_AFTER_SECONDS`) → `X-Cache: HIT`. **Stale** (age between soft and hard max) → `X-Cache: STALE`, return cached JSON, **enqueue or inline refresh**. **Hard** age &gt; `MAX_CACHE_SECONDS` → entry deleted, miss path. |
+| **Lock** | On miss, **`SET lock:aggregate:... NX EX`**; waiters **poll** (`LOCK_WAIT_MS` / `LOCK_POLL_MS`) for another process to fill cache, then **retry lock** or fetch. Stale background refresh also uses the lock. |
+| **Queue** | Default **`USE_REFRESH_QUEUE`** (set to `false` to force **inline** refresh only). API **`LPUSH queue:refresh`** with `{ kind, location, topic, base }`. Run **`npm run dev:worker`** in another terminal. |
+| **Rate limit** | Fixed window **`INCR` + `EXPIRE`** on `rate:aggregate:{ip}:{window}`. **`429`** + `Retry-After` when over limit (requires Redis; skipped if Redis disabled). |
 
 **Caching rule:** only **all-three-upstream success** responses are written to `data:`/`meta:`.
 

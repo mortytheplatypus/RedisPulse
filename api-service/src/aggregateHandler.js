@@ -7,7 +7,7 @@ import {
   readAggregateEntry,
   releaseLock,
   writeAggregateEntry,
-} from "@cache-project/core";
+} from "@redis-pulse/core";
 
 function classify(entry, nowMs, staleAfterSec, maxCacheSec) {
   if (!entry) return "miss";
