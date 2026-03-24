@@ -12,15 +12,7 @@ const STALE_AFTER_SECONDS = Number(process.env.STALE_AFTER_SECONDS ?? DEFAULTS.S
 const MAX_CACHE_SECONDS = Number(process.env.MAX_CACHE_SECONDS ?? DEFAULTS.MAX_CACHE_SECONDS);
 const LOCK_WAIT_MS = Number(process.env.LOCK_WAIT_MS ?? DEFAULTS.LOCK_WAIT_MS);
 const LOCK_POLL_MS = Number(process.env.LOCK_POLL_MS ?? DEFAULTS.LOCK_POLL_MS);
-const useRefreshQueue = process.env.USE_REFRESH_QUEUE !== "false" && process.env.USE_REFRESH_QUEUE !== "0";
-
-function baseUrl(envName, fallback) {
-  return (process.env[envName] ?? fallback).replace(/\/$/, "");
-}
-
-const WEATHER_SERVICE_URL = baseUrl("WEATHER_SERVICE_URL", DEFAULTS.WEATHER_SERVICE_URL);
-const NEWS_SERVICE_URL = baseUrl("NEWS_SERVICE_URL", DEFAULTS.NEWS_SERVICE_URL);
-const CURRENCY_SERVICE_URL = baseUrl("CURRENCY_SERVICE_URL", DEFAULTS.CURRENCY_SERVICE_URL);
+const shouldUseRefreshQueue = process.env.SHOULD_USE_REFRESH_QUEUE === "true" || DEFAULTS.SHOULD_USE_REFRESH_QUEUE === "1";
 
 const redis = createRedisClient();
 
@@ -30,10 +22,7 @@ const serviceCtx = {
   maxCacheSeconds: MAX_CACHE_SECONDS,
   lockWaitMs: LOCK_WAIT_MS,
   lockPollMs: LOCK_POLL_MS,
-  useRefreshQueue: Boolean(redis) && useRefreshQueue,
-  WEATHER_SERVICE_URL,
-  NEWS_SERVICE_URL,
-  CURRENCY_SERVICE_URL,
+  shouldUseRefreshQueue: Boolean(redis) && shouldUseRefreshQueue,
 };
 
 const rateLimitMw = createApiRateLimiter(redis, {});
@@ -83,5 +72,5 @@ app.listen(PORT, () => {
   console.log(`CURRENCY_SERVICE_URL=${CURRENCY_SERVICE_URL}`);
   console.log(`REDIS_URL=${redis ? (process.env.REDIS_URL ?? "(set)") : "disabled"}`);
   console.log(`STALE_AFTER_SECONDS=${STALE_AFTER_SECONDS} MAX_CACHE_SECONDS=${MAX_CACHE_SECONDS}`);
-  console.log(`USE_REFRESH_QUEUE=${serviceCtx.useRefreshQueue}`);
+  console.log(`SHOULD_USE_REFRESH_QUEUE=${serviceCtx.shouldUseRefreshQueue}`);
 });
