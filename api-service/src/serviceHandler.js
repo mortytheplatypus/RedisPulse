@@ -124,6 +124,44 @@ function triggerBackgroundRefresh(redis, kind, paramValue, shouldUseRefreshQueue
   })();
 }
 
+async function serveWithoutRedis(res, kind, paramValue) {
+  const fetched = await fetchByKind(kind, paramValue);
+  if (!fetched) {
+    res.status(400).json({ error: "unknown_kind", kind });
+    return;
+  }
+  jsonResponse(res, fetched.statusCode, fetched.body, "bypass", "BYPASS");
+}
+
+function tryRespondFromWaitedEntry(waited, ctx, kind, paramValue, res) {
+  if (!waited) return false;
+  const { redis, staleAfterSeconds, maxCacheSeconds, shouldUseRefreshQueue } = ctx;
+  const waitedState = classify(waited, Date.now(), staleAfterSeconds, maxCacheSeconds);
+  if (waitedState === "fresh") {
+    jsonResponse(res, waited.statusCode, waited.body, "hit", "HIT");
+    return true;
+  }
+  if (waitedState === "stale") {
+    triggerBackgroundRefresh(redis, kind, paramValue, shouldUseRefreshQueue);
+    jsonResponse(res, waited.statusCode, waited.body, "stale", "STALE");
+    return true;
+  }
+  return false;
+}
+
+async function serveMissAfterLocks(redis, kind, paramValue, res) {
+  const fetched = await fetchByKind(kind, paramValue);
+  if (!fetched) {
+    res.status(400).json({ error: "unknown_kind", kind });
+    return;
+  }
+  const { statusCode, body, cacheable } = fetched;
+  if (cacheable) {
+    await writeServiceEntry(redis, kind, paramValue, { statusCode, body });
+  }
+  jsonResponse(res, statusCode, body, "miss", "MISS");
+}
+
 /**
  * Serves a single cache-backed endpoint with stale-while-revalidate behavior.
  * Handles bypass, hit, stale, lock-wait, and miss fallback flows.
@@ -151,12 +189,8 @@ async function serveSingle(req, res, ctx, kind, paramName) {
   }
 
   if (!redis) {
-    const fetched = await fetchByKind(kind, paramValue);
-    if (!fetched) {
-      return res.status(400).json({ error: "unknown_kind", kind });
-    }
-    const { statusCode, body } = fetched;
-    return jsonResponse(res, statusCode, body, "bypass", "BYPASS");
+    await serveWithoutRedis(res, kind, paramValue);
+    return;
   }
 
   const now = Date.now();
@@ -183,32 +217,15 @@ async function serveSingle(req, res, ctx, kind, paramName) {
   }
 
   const waited = await pollUntilServicePresent(redis, kind, paramValue, lockWaitMs, lockPollMs, maxCacheSeconds);
-  if (waited) {
-    const waitedState = classify(waited, Date.now(), staleAfterSeconds, maxCacheSeconds);
-    if (waitedState === "fresh") {
-      jsonResponse(res, waited.statusCode, waited.body, "hit", "HIT");
-      return;
-    }
-    if (waitedState === "stale") {
-      triggerBackgroundRefresh(redis, kind, paramValue, shouldUseRefreshQueue);
-      jsonResponse(res, waited.statusCode, waited.body, "stale", "STALE");
-      return;
-    }
+  if (tryRespondFromWaitedEntry(waited, ctx, kind, paramValue, res)) {
+    return;
   }
 
   if (await tryMissUnderLock(redis, kind, paramValue, res)) {
     return;
   }
 
-  const fetched = await fetchByKind(kind, paramValue);
-  if (!fetched) {
-    return res.status(400).json({ error: "unknown_kind", kind });
-  }
-  const { statusCode, body, cacheable } = fetched;
-  if (cacheable) {
-    await writeServiceEntry(redis, kind, paramValue, { statusCode, body });
-  }
-  return jsonResponse(res, statusCode, body, "miss", "MISS");
+  await serveMissAfterLocks(redis, kind, paramValue, res);
 }
 
 export function serveWeather(req, res, ctx) {
